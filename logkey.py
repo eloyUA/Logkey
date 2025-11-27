@@ -9,9 +9,10 @@ contador = Counter()
 def guardar_frecuencias(path) -> None:
     # Cuando termines, guarda el resultado en un fichero:
     # (este bloque se ejecutaría si haces un mecanismo para romper el loop)
+    total = contador.total()
     with open(path, 'w') as f:
         for tecla, cantidad in contador.most_common():
-            f.write(f"{tecla}: {cantidad}\n")
+            f.write(f"{tecla}: {cantidad}, {round((cantidad/total)*100, 2)}%\n")
 
 def leer_frecuencias(path) -> Counter:
     try:

@@ -1,19 +1,27 @@
 from evdev import InputDevice, categorize, ecodes
 from collections import Counter
+from pathlib import Path
 
-RUTA_FICHERO = '/home/eloy348/Programas/Logkey/conteo_teclas.txt'
+RUTA_FICHERO = "~/.keycounter/log.txt"
 FREC_GUARDADO = 50
 contador = Counter()
 
-def guardar_frecuencias() -> None:
+def guardar_frecuencias(path) -> None:
     # Cuando termines, guarda el resultado en un fichero:
     # (este bloque se ejecutaría si haces un mecanismo para romper el loop)
-    with open(RUTA_FICHERO, 'w') as f:
+    with open(path, 'w') as f:
         for tecla, cantidad in contador.most_common():
             f.write(f"{tecla}: {cantidad}\n")
 
-def leer_frecuencias() -> Counter:
-    with open(RUTA_FICHERO, "r", encoding="utf-8") as f:
+def leer_frecuencias(path) -> Counter:
+    try:
+        carpeta = path.parent
+        carpeta.mkdir(parents=True, exist_ok=True)
+        path.touch(exist_ok=True)
+    except Exception as e:
+        print(e)
+    
+    with open(path, "r", encoding="utf-8") as f:
         for linea in f:
             linea = linea.strip()
             if not linea:
@@ -34,8 +42,9 @@ def leer_frecuencias() -> Counter:
             contador[palabra] = valor
 
 if __name__ == '__main__':
-    leer_frecuencias()
-    dev = InputDevice('/dev/input/event0')
+    path = Path(RUTA_FICHERO).expanduser()
+    leer_frecuencias(path)
+    dev = InputDevice('/dev/input/event4')
 
     print('Registrando letras, pulsa Ctrl+C para terminar.')
     cont_presiones = 0
@@ -48,4 +57,4 @@ if __name__ == '__main__':
                 contador[keyname] += 1
                 cont_presiones += 1
                 if cont_presiones % FREC_GUARDADO == 0:
-                    guardar_frecuencias()
+                    guardar_frecuencias(path)

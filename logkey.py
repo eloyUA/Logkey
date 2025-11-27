@@ -2,60 +2,60 @@ from evdev import InputDevice, categorize, ecodes
 from collections import Counter
 from pathlib import Path
 
-RUTA_FICHERO = "~/.keycounter/log.txt"
-FREC_GUARDADO = 50
-contador = Counter()
+FILE_PATH = "~/Logkey/log.txt"
+INPUT_DEVICE_PATH = "/dev/input/event0"
+SAVE_FREQ = 50
 
-def guardar_frecuencias(path) -> None:
-    # Cuando termines, guarda el resultado en un fichero:
-    # (este bloque se ejecutaría si haces un mecanismo para romper el loop)
-    total = contador.total()
-    with open(path, 'w') as f:
-        for tecla, cantidad in contador.most_common():
-            f.write(f"{tecla}: {cantidad}, {round((cantidad/total)*100, 2)}%\n")
-
-def leer_frecuencias(path) -> Counter:
+def create_log_file(path: str):
     try:
-        carpeta = path.parent
-        carpeta.mkdir(parents=True, exist_ok=True)
+        dir = path.parent
+        dir.mkdir(parents=True, exist_ok=True)
         path.touch(exist_ok=True)
     except Exception as e:
         print(e)
-    
+
+def save_frequencies(path: str, counter: Counter) -> None:
+    total = counter.total()
+    with open(path, 'w') as f:
+        for key, amount in counter.most_common():
+            f.write(f"{key}: {amount}, {round((amount/total)*100, 2)}%\n")
+
+def read_frequencies(path: str) -> Counter:
+    counter = Counter()
     with open(path, "r", encoding="utf-8") as f:
-        for linea in f:
-            linea = linea.strip()
-            if not linea:
-                continue  # saltar líneas vacías
+        for line in f:
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
 
-            if ":" not in linea:
-                continue  # saltar líneas inválidas
-
-            palabra, valor = linea.split(":", 1)
-            palabra = palabra.strip()
-            valor = valor.strip()
+            word, values = line.split(":", 1)
+            count, _ = values.split(",", 1)
+            word = word.strip()
+            count = count.strip()
 
             try:
-                valor = int(valor)
+                count = int(count)
+                counter[word] = count
             except ValueError:
-                continue  # si el valor no es entero, se ignora
-
-            contador[palabra] = valor
+                continue
+    return counter
 
 if __name__ == '__main__':
-    path = Path(RUTA_FICHERO).expanduser()
-    leer_frecuencias(path)
-    dev = InputDevice('/dev/input/event4')
+    path = Path(FILE_PATH).expanduser()
+    dev = InputDevice(INPUT_DEVICE_PATH)
 
-    print('Registrando letras, pulsa Ctrl+C para terminar.')
-    cont_presiones = 0
-    for evento in dev.read_loop():
-        if evento.type == ecodes.EV_KEY:
-            key = categorize(evento)
-            # Solo cuando se presiona (value = 1)
+    create_log_file(path)    
+    counter = read_frequencies(path)
+
+    print('Registering letters, press Ctrl+C to finish.')
+    counter_press = 0
+    for event in dev.read_loop():
+        if event.type == ecodes.EV_KEY:
+            key = categorize(event)
+            # Only when the key is pressed (value = 1)
             if key.keystate == key.key_down:
                 keyname = key.keycode
-                contador[keyname] += 1
-                cont_presiones += 1
-                if cont_presiones % FREC_GUARDADO == 0:
-                    guardar_frecuencias(path)
+                counter[keyname] += 1
+                counter_press += 1
+                if counter_press % SAVE_FREQ == 0:
+                    save_frequencies(path, counter)
